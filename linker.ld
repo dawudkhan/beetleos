@@ -32,4 +32,5 @@ SECTIONS
 
         stack_top = .;
     }
+    kernel_end = .;
 }

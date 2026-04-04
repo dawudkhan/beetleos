@@ -20,7 +20,7 @@ CFLAGS = \
 
 LDFLAGS = -T linker.ld -nostdlib
 
-OBJS = entry.o kernel.o
+OBJS = entry.o kernel.o kalloc.o panic.o
 
 all: kernel.elf
 
@@ -30,12 +30,19 @@ entry.o: entry.S
 kernel.o: kernel.c
 	$(CC) $(CFLAGS) -c kernel.c -o kernel.o
 
+kalloc.o: kalloc.c
+	$(CC) $(CFLAGS) -c kalloc.c -o kalloc.o
+
 kernel.elf: $(OBJS) linker.ld
 	$(LD) $(LDFLAGS) -o kernel.elf $(OBJS)
+
+panic.o: panic.c
+	$(CC) $(CFLAGS) -c panic.c -o panic.o
 
 run: kernel.elf
 	qemu-system-riscv64 \
 		-machine virt \
+		-m 128M \
 		-bios none \
 		-kernel kernel.elf \
 		-nographic
