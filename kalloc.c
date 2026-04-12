@@ -8,8 +8,7 @@ extern char kernel_end[];
 
 static struct page *free_list;
 
-static uintptr_t align_up(uintptr_t address, uintptr_t alignment)
-{
+static uintptr_t align_up(uintptr_t address, uintptr_t alignment) {
     return (address + alignment - 1) & ~(alignment - 1);
 }
 
