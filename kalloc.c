@@ -1,8 +1,8 @@
 #include "kalloc.h"
 #include <stdint.h>
 
-#define PAGE_SIZE  0x1000UL
-#define RAM_END    0x88000000UL
+#define PAGE_SIZE 0x1000UL
+#define RAM_END 0x88000000UL
 
 extern char kernel_end[];
 
@@ -15,9 +15,7 @@ static uintptr_t align_up(uintptr_t address, uintptr_t alignment) {
 void kalloc_init(void) {
     uintptr_t start = align_up((uintptr_t)kernel_end, PAGE_SIZE);
 
-    for (uintptr_t addr = start;
-         addr < RAM_END;
-         addr += PAGE_SIZE) {
+    for (uintptr_t addr = start; addr < RAM_END; addr += PAGE_SIZE) {
 
         struct page *page = (struct page *)addr;
         page->next = free_list;
