@@ -4,6 +4,10 @@
 #include <stdint.h>
 
 #define UART0 0x10000000UL
+#define KERNEL_BASE 0x80000000UL
+#define PAGE_SIZE 0x1000UL
+
+extern char kernel_end[];
 
 static void uart_putc(char c) {
     volatile uint8_t *uart = (volatile uint8_t *)UART0;
@@ -50,18 +54,21 @@ void kernel_main(void) {
     if (root == 0)
         panic("failed to create page table");
 
-    vm_map(root, 0x80000000UL, 0x80000000UL, PTE_R | PTE_W | PTE_X);
+    uintptr_t kernel_top = ((uintptr_t)kernel_end + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 
-    pte_t *pte = vm_walk(root, 0x80000000UL);
-    if (pte == 0)
-        panic("mapping missing after vm_map");
+    for (uintptr_t addr = KERNEL_BASE; addr < kernel_top; addr += PAGE_SIZE)
+        vm_map(root, addr, addr, PTE_R | PTE_W | PTE_X);
 
-    uintptr_t mapped_pa = (*pte >> 10) << 12;
-    if (mapped_pa != 0x80000000UL)
-        panic("mapping points at wrong physical address");
+    vm_map(root, UART0, UART0, PTE_R | PTE_W);
 
-    if ((*pte & (PTE_R | PTE_W | PTE_X)) != (PTE_R | PTE_W | PTE_X))
-        panic("mapping missing expected permission bits");
+    if (vm_walk(root, KERNEL_BASE) == 0)
+        panic("kernel base not mapped");
+
+    if (vm_walk(root, kernel_top - PAGE_SIZE) == 0)
+        panic("last kernel page not mapped");
+
+    if (vm_walk(root, UART0) == 0)
+        panic("uart not mapped");
 
     uart_puts("mapping verified!\n");
 

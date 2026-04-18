@@ -11,7 +11,8 @@ static pagetable_t alloc_pagetable(void) {
 
     if (page_table == 0)
         panic("failed to allocate page table");
-
+    
+    // zero the newly allocated memory to remove garbage.
     for (int i = 0; i < 512; i++)
         page_table[i] = 0;
 
