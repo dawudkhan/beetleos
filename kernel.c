@@ -72,6 +72,12 @@ void kernel_main(void) {
 
     uart_puts("mapping verified!\n");
 
+    uint64_t satp_value = (8UL << 60) | ((uintptr_t)root >> 12);
+    __asm__ volatile("csrw satp, %0" ::"r"(satp_value));
+    __asm__ volatile("sfence.vma");
+
+    uart_puts("paging enabled!\n");
+
     while (1) {
         __asm__ volatile("wfi");
     }
