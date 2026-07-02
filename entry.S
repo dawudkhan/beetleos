@@ -23,6 +23,11 @@ _start:
     li t0, 0x0f
     csrw pmpcfg0, t0
 
+    # delegate exceptions and interrupts to s-mode
+    li t0, 0xffff
+    csrw medeleg, t0
+    csrw mideleg, t0
+
     # enter supervisor mode
     mret
 

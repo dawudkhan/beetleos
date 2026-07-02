@@ -1,5 +1,6 @@
 #include "kalloc.h"
 #include "panic.h"
+#include "trap.h"
 #include "vm.h"
 #include <stdint.h>
 
@@ -77,6 +78,9 @@ void kernel_main(void) {
     __asm__ volatile("sfence.vma");
 
     uart_puts("paging enabled!\n");
+
+    trap_init();
+    __asm__ volatile("ecall");
 
     while (1) {
         __asm__ volatile("wfi");
