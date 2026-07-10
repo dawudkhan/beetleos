@@ -27,19 +27,77 @@ static void uart_put_hex(uint64_t value) {
     }
 }
 
+// bit 63 of scause is set for interrupts, the rest is the cause code.
+static const char *cause_name(uint64_t scause) {
+    uint64_t code = scause & 0x7fffffffffffffffULL;
+
+    if (scause >> 63) {
+        switch (code) {
+            case 1:
+                return "supervisor software interrupt";
+            case 5:
+                return "supervisor timer interrupt";
+            case 9:
+                return "supervisor external interrupt";
+            default:
+                return "unknown interrupt";
+        }
+    }
+
+    switch (code) {
+        case 0:
+            return "instruction address misaligned";
+        case 1:
+            return "instruction access fault";
+        case 2:
+            return "illegal instruction";
+        case 3:
+            return "breakpoint";
+        case 4:
+            return "load address misaligned";
+        case 5:
+            return "load access fault";
+        case 6:
+            return "store address misaligned";
+        case 7:
+            return "store access fault";
+        case 8:
+            return "ecall from u-mode";
+        case 9:
+            return "ecall from s-mode";
+        case 12:
+            return "instruction page fault";
+        case 13:
+            return "load page fault";
+        case 15:
+            return "store page fault";
+        default:
+            return "unknown exception";
+    }
+}
+
 void trap_handler(void) {
     uint64_t scause, sepc, stval;
     __asm__ volatile("csrr %0, scause" : "=r"(scause));
     __asm__ volatile("csrr %0, sepc" : "=r"(sepc));
     __asm__ volatile("csrr %0, stval" : "=r"(stval));
 
-    uart_puts("trap: scause=");
+    uart_puts("trap: ");
+    uart_puts(cause_name(scause));
+    uart_puts(" scause=");
     uart_put_hex(scause);
     uart_puts(" sepc=");
     uart_put_hex(sepc);
     uart_puts(" stval=");
     uart_put_hex(stval);
     uart_puts("\n");
+
+    if (scause == 9) {
+        // step past the ecall so it does not trap again.
+        sepc += 4;
+        __asm__ volatile("csrw sepc, %0" ::"r"(sepc));
+        return;
+    }
 
     panic("unhandled trap");
 }

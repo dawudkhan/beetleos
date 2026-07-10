@@ -82,6 +82,8 @@ void kernel_main(void) {
     trap_init();
     __asm__ volatile("ecall");
 
+    uart_puts("resumed after trap!\n");
+
     while (1) {
         __asm__ volatile("wfi");
     }
