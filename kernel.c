@@ -84,6 +84,9 @@ void kernel_main(void) {
 
     uart_puts("resumed after trap!\n");
 
+    timer_init();
+    uart_puts("timer enabled!\n");
+
     while (1) {
         __asm__ volatile("wfi");
     }

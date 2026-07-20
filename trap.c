@@ -99,9 +99,20 @@ void trap_handler(void) {
         return;
     }
 
+    // supervisor software interrupt, used here as the timer tick.
+    if (scause == (1ULL << 63 | 1)) {
+        __asm__ volatile("csrc sip, %0" ::"r"(2));
+        return;
+    }
+
     panic("unhandled trap");
 }
 
 void trap_init(void) {
     __asm__ volatile("csrw stvec, %0" ::"r"(trap_vector));
+}
+
+void timer_init(void) {
+    __asm__ volatile("csrs sie, %0" ::"r"(2));
+    __asm__ volatile("csrs sstatus, %0" ::"r"(2));
 }
