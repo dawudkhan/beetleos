@@ -6,6 +6,7 @@
 
 #define UART0 0x10000000UL
 #define KERNEL_BASE 0x80000000UL
+#define RAM_END 0x88000000UL
 #define PAGE_SIZE 0x1000UL
 
 extern char kernel_end[];
@@ -59,6 +60,10 @@ void kernel_main(void) {
 
     for (uintptr_t addr = KERNEL_BASE; addr < kernel_top; addr += PAGE_SIZE)
         vm_map(root, addr, addr, PTE_R | PTE_W | PTE_X);
+
+    // direct-map the rest of ram so kalloc'd pages stay reachable once paging is on.
+    for (uintptr_t addr = kernel_top; addr < RAM_END; addr += PAGE_SIZE)
+        vm_map(root, addr, addr, PTE_R | PTE_W);
 
     vm_map(root, UART0, UART0, PTE_R | PTE_W);
 
