@@ -1,5 +1,6 @@
 #include "kalloc.h"
 #include "panic.h"
+#include "proc.h"
 #include "trap.h"
 #include "vm.h"
 #include <stdint.h>
@@ -91,6 +92,29 @@ void kernel_main(void) {
 
     timer_init();
     uart_puts("timer enabled!\n");
+
+    struct proc *p1 = proc_alloc();
+    struct proc *p2 = proc_alloc();
+
+    if (p1 == 0 || p2 == 0)
+        panic("failed to allocate process");
+
+    void *page1 = kalloc();
+    void *page2 = kalloc();
+
+    vm_map(p1->pagetable, 0x1000, (uintptr_t)page1, PTE_R | PTE_W);
+    vm_map(p2->pagetable, 0x1000, (uintptr_t)page2, PTE_R | PTE_W);
+
+    pte_t *pte1 = vm_walk(p1->pagetable, 0x1000);
+    pte_t *pte2 = vm_walk(p2->pagetable, 0x1000);
+
+    if (pte1 == 0 || pte2 == 0)
+        panic("process mapping missing");
+
+    if (((*pte1 >> 10) << 12) == ((*pte2 >> 10) << 12))
+        panic("processes share a physical page unexpectedly");
+
+    uart_puts("process isolation verified!\n");
 
     while (1) {
         __asm__ volatile("wfi");

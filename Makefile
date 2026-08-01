@@ -20,7 +20,7 @@ CFLAGS = \
 
 LDFLAGS = -T linker.ld -nostdlib
 
-OBJS = entry.o kernel.o kalloc.o panic.o vm.o trap.o trap_entry.o
+OBJS = entry.o kernel.o kalloc.o panic.o vm.o trap.o trap_entry.o proc.o
 
 all: kernel.elf
 
@@ -44,6 +44,9 @@ trap.o: trap.c
 
 trap_entry.o: trap.S
 	$(CC) $(CFLAGS) -c trap.S -o trap_entry.o
+
+proc.o: proc.c
+	$(CC) $(CFLAGS) -c proc.c -o proc.o
 
 kernel.elf: $(OBJS) linker.ld
 	$(LD) $(LDFLAGS) -o kernel.elf $(OBJS)
