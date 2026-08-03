@@ -12,9 +12,14 @@
 extern char kernel_end[];
 extern void enter_user_mode(uint64_t satp_val, uintptr_t entry_pc);
 
-// hand-encoded so it can be copied onto its own kalloc'd page: li a7,42; ecall; j .
-static const uint32_t user_code[] = {
-    0x02a00893,
+static const uint32_t user_code_p1[] = {
+    0x02a00893, // li a7, 42
+    0x00000073,
+    0x0000006f,
+};
+
+static const uint32_t user_code_p2[] = {
+    0x02b00893, // li a7, 43
     0x00000073,
     0x0000006f,
 };
@@ -117,21 +122,36 @@ void kernel_main(void) {
     uart_puts("process isolation verified!\n");
 
     vm_map_kernel(p1->pagetable);
+    vm_map_kernel(p2->pagetable);
 
-    uint32_t *user_page = kalloc();
-    if (user_page == 0)
+    uint32_t *p1_code = kalloc();
+    uint32_t *p2_code = kalloc();
+    if (p1_code == 0 || p2_code == 0)
         panic("failed to allocate user code page");
 
-    for (uint64_t i = 0; i < sizeof(user_code) / sizeof(user_code[0]); i++)
-        user_page[i] = user_code[i];
+    for (uint64_t i = 0; i < sizeof(user_code_p1) / sizeof(user_code_p1[0]); i++)
+        p1_code[i] = user_code_p1[i];
 
-    uintptr_t user_pc = (uintptr_t)user_page;
-    vm_map(p1->pagetable, user_pc, user_pc, PTE_R | PTE_X | PTE_U);
+    for (uint64_t i = 0; i < sizeof(user_code_p2) / sizeof(user_code_p2[0]); i++)
+        p2_code[i] = user_code_p2[i];
 
-    uint64_t user_satp = (8UL << 60) | ((uintptr_t)p1->pagetable >> 12);
+    vm_map(p1->pagetable, (uintptr_t)p1_code, (uintptr_t)p1_code, PTE_R | PTE_X | PTE_U);
+    vm_map(p2->pagetable, (uintptr_t)p2_code, (uintptr_t)p2_code, PTE_R | PTE_X | PTE_U);
 
-    uart_puts("entering u-mode...\n");
-    enter_user_mode(user_satp, user_pc);
+    p1->pc = (uintptr_t)p1_code;
+    p2->pc = (uintptr_t)p2_code;
+
+    struct proc *first = proc_schedule();
+    if (first == 0)
+        panic("no runnable process");
+
+    first->state = RUNNING;
+    current_proc = first;
+
+    uint64_t first_satp = (8UL << 60) | ((uintptr_t)first->pagetable >> 12);
+
+    uart_puts("starting scheduler...\n");
+    enter_user_mode(first_satp, first->pc);
 
     while (1) {
         __asm__ volatile("wfi");

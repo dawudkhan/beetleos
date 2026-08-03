@@ -1,5 +1,6 @@
 #include "trap.h"
 #include "panic.h"
+#include "proc.h"
 #include <stdint.h>
 
 #define UART0 0x10000000UL
@@ -76,7 +77,39 @@ static const char *cause_name(uint64_t scause) {
     }
 }
 
-void trap_handler(void) {
+// save the outgoing process, pick the next runnable one, load it into
+// the trap frame so the sret this trap ends with resumes it instead.
+static void schedule(uint64_t *regs, uint64_t sepc) {
+    struct proc *next = proc_schedule();
+    if (next == 0)
+        return;
+
+    struct proc *prev = current_proc;
+
+    if (prev != 0) {
+        for (int i = 0; i < 32; i++)
+            prev->regs[i] = regs[i];
+        prev->pc = sepc;
+        if (prev->state == RUNNING)
+            prev->state = RUNNABLE;
+    }
+
+    for (int i = 0; i < 32; i++)
+        regs[i] = next->regs[i];
+
+    __asm__ volatile("csrw sepc, %0" ::"r"(next->pc));
+
+    if (prev == 0 || next->pagetable != prev->pagetable) {
+        uint64_t satp_value = (8UL << 60) | ((uintptr_t)next->pagetable >> 12);
+        __asm__ volatile("csrw satp, %0" ::"r"(satp_value));
+        __asm__ volatile("sfence.vma");
+    }
+
+    next->state = RUNNING;
+    current_proc = next;
+}
+
+void trap_handler(uint64_t *regs) {
     uint64_t scause, sepc, stval;
     __asm__ volatile("csrr %0, scause" : "=r"(scause));
     __asm__ volatile("csrr %0, sepc" : "=r"(sepc));
@@ -93,6 +126,10 @@ void trap_handler(void) {
     uart_puts("\n");
 
     if (scause == 8 || scause == 9) {
+        uart_puts("  a7=");
+        uart_put_hex(regs[17]);
+        uart_puts("\n");
+
         // step past the ecall so it does not trap again.
         sepc += 4;
         __asm__ volatile("csrw sepc, %0" ::"r"(sepc));
@@ -102,6 +139,7 @@ void trap_handler(void) {
     // supervisor software interrupt, used here as the timer tick.
     if (scause == (1ULL << 63 | 1)) {
         __asm__ volatile("csrc sip, %0" ::"r"(2));
+        schedule(regs, sepc);
         return;
     }
 
