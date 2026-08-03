@@ -7,10 +7,17 @@
 
 #define UART0 0x10000000UL
 #define KERNEL_BASE 0x80000000UL
-#define RAM_END 0x88000000UL
 #define PAGE_SIZE 0x1000UL
 
 extern char kernel_end[];
+extern void enter_user_mode(uint64_t satp_val, uintptr_t entry_pc);
+
+// hand-encoded so it can be copied onto its own kalloc'd page: li a7,42; ecall; j .
+static const uint32_t user_code[] = {
+    0x02a00893,
+    0x00000073,
+    0x0000006f,
+};
 
 static void uart_putc(char c) {
     volatile uint8_t *uart = (volatile uint8_t *)UART0;
@@ -59,14 +66,7 @@ void kernel_main(void) {
 
     uintptr_t kernel_top = ((uintptr_t)kernel_end + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 
-    for (uintptr_t addr = KERNEL_BASE; addr < kernel_top; addr += PAGE_SIZE)
-        vm_map(root, addr, addr, PTE_R | PTE_W | PTE_X);
-
-    // direct-map the rest of ram so kalloc'd pages stay reachable once paging is on.
-    for (uintptr_t addr = kernel_top; addr < RAM_END; addr += PAGE_SIZE)
-        vm_map(root, addr, addr, PTE_R | PTE_W);
-
-    vm_map(root, UART0, UART0, PTE_R | PTE_W);
+    vm_map_kernel(root);
 
     if (vm_walk(root, KERNEL_BASE) == 0)
         panic("kernel base not mapped");
@@ -115,6 +115,23 @@ void kernel_main(void) {
         panic("processes share a physical page unexpectedly");
 
     uart_puts("process isolation verified!\n");
+
+    vm_map_kernel(p1->pagetable);
+
+    uint32_t *user_page = kalloc();
+    if (user_page == 0)
+        panic("failed to allocate user code page");
+
+    for (uint64_t i = 0; i < sizeof(user_code) / sizeof(user_code[0]); i++)
+        user_page[i] = user_code[i];
+
+    uintptr_t user_pc = (uintptr_t)user_page;
+    vm_map(p1->pagetable, user_pc, user_pc, PTE_R | PTE_X | PTE_U);
+
+    uint64_t user_satp = (8UL << 60) | ((uintptr_t)p1->pagetable >> 12);
+
+    uart_puts("entering u-mode...\n");
+    enter_user_mode(user_satp, user_pc);
 
     while (1) {
         __asm__ volatile("wfi");

@@ -2,6 +2,13 @@
 #include "kalloc.h"
 #include "panic.h"
 
+#define KERNEL_BASE 0x80000000UL
+#define RAM_END 0x88000000UL
+#define UART0 0x10000000UL
+#define PAGE_SIZE 0x1000UL
+
+extern char kernel_end[];
+
 static uint64_t vpn_index(uintptr_t va, int level) {
     return (va >> (12 + 9 * level)) & 0x1ff;
 }
@@ -44,6 +51,18 @@ void vm_map(pagetable_t root, uintptr_t va, uintptr_t pa, uint64_t flags) {
     uint64_t index = vpn_index(va, 0);
 
     table[index] = ((pa >> 12) << 10) | flags | PTE_V;
+}
+
+void vm_map_kernel(pagetable_t root) {
+    uintptr_t kernel_top = ((uintptr_t)kernel_end + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+
+    for (uintptr_t addr = KERNEL_BASE; addr < kernel_top; addr += PAGE_SIZE)
+        vm_map(root, addr, addr, PTE_R | PTE_W | PTE_X);
+
+    for (uintptr_t addr = kernel_top; addr < RAM_END; addr += PAGE_SIZE)
+        vm_map(root, addr, addr, PTE_R | PTE_W);
+
+    vm_map(root, UART0, UART0, PTE_R | PTE_W);
 }
 
 pte_t *vm_walk(pagetable_t root, uintptr_t va) {

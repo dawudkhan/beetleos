@@ -92,7 +92,7 @@ void trap_handler(void) {
     uart_put_hex(stval);
     uart_puts("\n");
 
-    if (scause == 9) {
+    if (scause == 8 || scause == 9) {
         // step past the ecall so it does not trap again.
         sepc += 4;
         __asm__ volatile("csrw sepc, %0" ::"r"(sepc));
