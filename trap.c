@@ -2,23 +2,10 @@
 #include "panic.h"
 #include "proc.h"
 #include "syscall.h"
+#include "uart.h"
 #include <stdint.h>
 
-#define UART0 0x10000000UL
-
 extern char trap_vector[];
-
-static void uart_putc(char c) {
-    volatile uint8_t *uart = (volatile uint8_t *)UART0;
-    *uart = (uint8_t)c;
-}
-
-static void uart_puts(const char *s) {
-    while (*s) {
-        uart_putc(*s);
-        s++;
-    }
-}
 
 // print a 64-bit value as 0x-prefixed hex, one nibble at a time.
 static void uart_put_hex(uint64_t value) {

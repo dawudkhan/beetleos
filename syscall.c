@@ -1,17 +1,12 @@
 #include "syscall.h"
 #include "proc.h"
+#include "uart.h"
 
 // using linux compatible syscall numbers for convenience.
 #define SYS_WRITE 64
 #define SYS_EXIT 93
 
-#define UART0 0x10000000UL
 #define SSTATUS_SUM (1UL << 18)
-
-static void uart_putc(char c) {
-    volatile uint8_t *uart = (volatile uint8_t *)UART0;
-    *uart = (uint8_t)c;
-}
 
 static uint64_t sys_write(int fd, const char *buf, uint64_t len) {
     // ignored for now.

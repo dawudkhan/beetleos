@@ -2,6 +2,7 @@
 #include "panic.h"
 #include "proc.h"
 #include "trap.h"
+#include "uart.h"
 #include "vm.h"
 #include <stdint.h>
 
@@ -43,18 +44,6 @@ static const uint32_t user_code_p2[] = {
     0x0000006f, // j .
     0x000a3270, // msg: "p2\n\0"
 };
-
-static void uart_putc(char c) {
-    volatile uint8_t *uart = (volatile uint8_t *)UART0;
-    *uart = (uint8_t)c;
-}
-
-static void uart_puts(const char *s) {
-    while (*s) {
-        uart_putc(*s);
-        s++;
-    }
-}
 
 static void test_allocator(void) {
     void *a = kalloc();

@@ -1,18 +1,5 @@
 #include "panic.h"
-
-#define UART0 0x10000000UL
-
-static void uart_putc(char c) {
-    volatile unsigned char *uart = (volatile unsigned char *)UART0;
-    *uart = (unsigned char)c;
-}
-
-static void uart_puts(const char *s) {
-    while (*s) {
-        uart_putc(*s);
-        s++;
-    }
-}
+#include "uart.h"
 
 void panic(const char *message) {
     uart_puts("PANIC: ");
