@@ -9,9 +9,11 @@ BeetleOS boots on QEMU's `virt` machine into supervisor mode and currently imple
 - Physical page allocator
 - Sv39 virtual memory
 - Trap and interrupt handling (including timer interrupts)
-- Per-process address spaces
+- Per-process address spaces, user-mode execution
+- Round-robin scheduling across processes
+- System calls (write, exit)
 
-User-mode execution is not implemented yet. The project is under active development.
+The project is under active development.
 
 ## Build & run
 
