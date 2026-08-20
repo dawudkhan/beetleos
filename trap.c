@@ -1,6 +1,7 @@
 #include "trap.h"
 #include "panic.h"
 #include "proc.h"
+#include "syscall.h"
 #include <stdint.h>
 
 #define UART0 0x10000000UL
@@ -125,14 +126,28 @@ void trap_handler(uint64_t *regs) {
     uart_put_hex(stval);
     uart_puts("\n");
 
-    if (scause == 8 || scause == 9) {
+    // ecall from s-mode (boot-time trap test)
+    if (scause == 9) {
         uart_puts("  a7=");
         uart_put_hex(regs[17]);
         uart_puts("\n");
 
-        // step past the ecall so it does not trap again.
         sepc += 4;
         __asm__ volatile("csrw sepc, %0" ::"r"(sepc));
+        return;
+    }
+
+    // ecall from u-mode.
+    if (scause == 8) {
+        sepc += 4;
+        __asm__ volatile("csrw sepc, %0" ::"r"(sepc));
+
+        syscall_dispatch(regs);
+
+        // sys_exit left current_proc unused, do not resume.
+        if (current_proc->state != RUNNING)
+            schedule(regs, sepc);
+
         return;
     }
 

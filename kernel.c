@@ -12,16 +12,36 @@
 extern char kernel_end[];
 extern void enter_user_mode(uint64_t satp_val, uintptr_t entry_pc);
 
+// user_code_p1 and user_code_p2 are 2 AI generated test programs to test the syscall and scheduler.
+
+// hand-assembled: la a1, msg; li a0,1; li a2,3; li a7,SYS_WRITE; ecall;
+// li a7,SYS_EXIT; li a0,0; ecall; j .; msg: "p1\n"
 static const uint32_t user_code_p1[] = {
-    0x02a00893, // li a7, 42
-    0x00000073,
-    0x0000006f,
+    0x00000597, // auipc a1, 0
+    0x02858593, // addi  a1, a1, 40     -- a1 = &msg
+    0x00100513, // li a0, 1             -- fd
+    0x00300613, // li a2, 3             -- len
+    0x04000893, // li a7, 64            -- SYS_WRITE
+    0x00000073, // ecall
+    0x05d00893, // li a7, 93            -- SYS_EXIT
+    0x00000513, // li a0, 0             -- status
+    0x00000073, // ecall
+    0x0000006f, // j .
+    0x000a3170, // msg: "p1\n\0"
 };
 
 static const uint32_t user_code_p2[] = {
-    0x02b00893, // li a7, 43
-    0x00000073,
-    0x0000006f,
+    0x00000597, // auipc a1, 0
+    0x02858593, // addi  a1, a1, 40     -- a1 = &msg
+    0x00100513, // li a0, 1             -- fd
+    0x00300613, // li a2, 3             -- len
+    0x04000893, // li a7, 64            -- SYS_WRITE
+    0x00000073, // ecall
+    0x05d00893, // li a7, 93            -- SYS_EXIT
+    0x00000513, // li a0, 0             -- status
+    0x00000073, // ecall
+    0x0000006f, // j .
+    0x000a3270, // msg: "p2\n\0"
 };
 
 static void uart_putc(char c) {
